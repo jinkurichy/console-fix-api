@@ -1,30 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
+const mongoose = require('mongoose');
 
-// ==========================================
-// 1. OBTENER TODOS LOS USUARIOS Y PERSONAL
-// ==========================================
-// Endpoint que llama la app Android (GET /api/users) para listar al equipo
+// Utilizar el Modelo 'User' registrado en Mongoose
+const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({
+  fullName: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  phone: { type: String, default: '' },
+  role: { type: String, default: 'Técnico de Reparaciones' },
+  jobTitle: { type: String, default: 'Pendiente de Asignación' },
+  status: { type: String, default: 'PENDING_APPROVAL' },
+  isApproved: { type: Boolean, default: false },
+  password: { type: String, required: true },
+  createdAt: { type: Number, default: Date.now }
+}));
+
+// OBTENER TODOS LOS USUARIOS (GET /api/users)
 router.get('/', async (req, res) => {
   try {
-    const users = await User.find().select('-password'); // Excluir la contraseña por seguridad
+    const users = await User.find().select('-password');
     res.json(users);
   } catch (error) {
-    console.error('Error al obtener usuarios:', error);
-    res.status(500).json({ success: false, message: 'Error al consultar la lista de usuarios.' });
+    console.error('Error al consultar usuarios:', error);
+    res.status(500).json({ success: false, message: 'Error al consultar lista de usuarios.' });
   }
 });
 
-// ==========================================
-// 2. APROBAR USUARIO Y ASIGNAR PUESTO
-// ==========================================
-// Endpoint que llama la app Android (PUT /api/users/:id/approve)
+// APROBAR USUARIO Y ASIGNAR PUESTO (PUT /api/users/:id/approve)
 router.put('/:id/approve', async (req, res) => {
   try {
     const { jobTitle, role, status } = req.body;
     
-    // Buscar usuario por ID o por Email
     let user = await User.findById(req.params.id);
     if (!user) {
       user = await User.findOne({ email: req.params.id });
@@ -34,7 +40,6 @@ router.put('/:id/approve', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
 
-    // Activar acceso y asignar puesto de trabajo
     user.status = status || 'ACTIVE';
     user.isApproved = true;
     user.jobTitle = jobTitle || user.jobTitle;
