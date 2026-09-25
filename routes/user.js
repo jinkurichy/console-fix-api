@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 
-// Utilizar el Modelo 'User' registrado en Mongoose
+// Modelo 'User' registrado en Mongoose
 const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -15,7 +15,7 @@ const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema(
   createdAt: { type: Number, default: Date.now }
 }));
 
-// OBTENER TODOS LOS USUARIOS (GET /api/users)
+// LISTAR TODOS LOS USUARIOS (GET /api/users)
 router.get('/', async (req, res) => {
   try {
     const users = await User.find().select('-password');
