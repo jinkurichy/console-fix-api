@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 // Definición interna del Modelo 'User' (Evita el error MODULE_NOT_FOUND)
-const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({
+const User = mongoose.models.User || mongoose.model('user', new mongoose.Schema({
   fullName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   phone: { type: String, default: '' },
