@@ -1,60 +1,66 @@
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
+const db = require('../db'); // Conexión a MySQL en Railway
 
-// Modelo 'User' registrado en Mongoose
-const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({
-  fullName: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  phone: { type: String, default: '' },
-  role: { type: String, default: 'Técnico de Reparaciones' },
-  jobTitle: { type: String, default: 'Pendiente de Asignación' },
-  status: { type: String, default: 'PENDING_APPROVAL' },
-  isApproved: { type: Boolean, default: false },
-  password: { type: String, required: true },
-  createdAt: { type: Number, default: Date.now }
-}));
-
-// LISTAR TODOS LOS USUARIOS (GET /api/users)
+// LISTAR TODOS LOS USUARIOS DESDE MYSQL (GET /api/users)
 router.get('/', async (req, res) => {
   try {
-    const users = await User.find().select('-password');
-    res.json(users);
+    const [rows] = await db.query('SELECT id, full_name, email, phone, role, job_title, status FROM users');
+    
+    // Convertir nombres de columnas de MySQL (full_name) a formato Android (fullName)
+    const mappedUsers = rows.map(u => ({
+      id: u.id.toString(),
+      fullName: u.full_name || u.email,
+      email: u.email,
+      phone: u.phone || '',
+      role: u.role || 'Técnico de Reparaciones',
+      jobTitle: u.job_title || 'Pendiente de Asignación',
+      status: u.status || 'ACTIVE'
+    }));
+
+    res.json(mappedUsers);
   } catch (error) {
-    console.error('Error al consultar usuarios:', error);
-    res.status(500).json({ success: false, message: 'Error al consultar lista de usuarios.' });
+    console.error('Error al consultar usuarios en MySQL:', error);
+    res.status(500).json({ success: false, message: 'Error al consultar lista de usuarios en MySQL.' });
   }
 });
 
-// APROBAR USUARIO Y ASIGNAR PUESTO (PUT /api/users/:id/approve)
+// APROBAR USUARIO EN MYSQL (PUT /api/users/:id/approve)
 router.put('/:id/approve', async (req, res) => {
   try {
     const { jobTitle, role, status } = req.body;
-    
-    let user = await User.findById(req.params.id);
-    if (!user) {
-      user = await User.findOne({ email: req.params.id });
-    }
+    const identifier = req.params.id;
 
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
-    }
-
-    user.status = status || 'ACTIVE';
-    user.isApproved = true;
-    user.jobTitle = jobTitle || user.jobTitle;
-    if (role) user.role = role;
-
-    await user.save();
+    await db.query(
+      `UPDATE users 
+       SET status = ?, job_title = ?, role = ? 
+       WHERE id = ? OR email = ?`,
+      [status || 'ACTIVE', jobTitle || 'Técnico', role || 'Técnico de Reparaciones', identifier, identifier]
+    );
 
     res.json({
       success: true,
-      message: 'Usuario aprobado y puesto asignado correctamente.',
-      user
+      message: 'Usuario aprobado y puesto asignado correctamente en MySQL.'
     });
   } catch (error) {
-    console.error('Error al aprobar usuario:', error);
-    res.status(500).json({ success: false, message: 'Error al aprobar usuario en el servidor.' });
+    console.error('Error al aprobar usuario en MySQL:', error);
+    res.status(500).json({ success: false, message: 'Error al aprobar usuario en MySQL.' });
+  }
+});
+
+// DENEGAR / ELIMINAR USUARIO EN MYSQL (DELETE /api/users/:id)
+router.delete('/:id', async (req, res) => {
+  try {
+    const identifier = req.params.id;
+    await db.query('DELETE FROM users WHERE id = ? OR email = ?', [identifier, identifier]);
+
+    res.json({
+      success: true,
+      message: 'Solicitud eliminada/denegada correctamente en MySQL.'
+    });
+  } catch (error) {
+    console.error('Error al eliminar usuario en MySQL:', error);
+    res.status(500).json({ success: false, message: 'Error al denegar usuario en MySQL.' });
   }
 });
 
